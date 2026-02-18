@@ -1,280 +1,281 @@
-:root {
-    --forest: #2d5a27;
-    --grass: #8cbf88;
-    --cream: #F0EBE3;
-    --dark: #1a1a1a;
-}
+// ==========================================
+// 1. GLOBAL STATE & VARIABLES
+// ==========================================
+let stagesCleared = 0;
+let gameActive = true;
+let musicStarted = false;
+let ticketSpeed = 800; // Ticket jump speed in ms
+let movementInterval;
 
-/* Totoro Head Cursor */
-* {
-    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="18" r="10" fill="%239e9e9e"/><circle cx="13" cy="15" r="2" fill="white"/><circle cx="19" cy="15" r="2" fill="white"/><path d="M12,8 L14,14 L10,14 Z" fill="%239e9e9e"/><path d="M20,8 L18,14 L22,14 Z" fill="%239e9e9e"/></svg>'), auto;
-}
+let hunger = 80;
+let acorns = 0;
+let bounces = 0;
 
-body {
-    background-color: var(--grass);
-    font-family: 'VT323', monospace;
-    margin: 0; padding: 20px;
-    display: flex; justify-content: center;
-    overflow-x: hidden;
-}
+const bgMusic = document.getElementById('bgMusic');
+const popSound = document.getElementById('popSound');
+const target = document.getElementById('target-ticket');
+const gateMsg = document.getElementById('gate-msg');
+const stageDisplay = document.getElementById('stage-count');
 
-.pixel-font { font-family: 'Press Start 2P', cursive; font-size: 0.7rem; color: var(--forest); line-height: 1.5; }
-.tiny { font-size: 0.5rem; }
-.body-font { font-size: 1.5rem; color: var(--dark); margin: 5px 0; }
-
-.game-wrapper { max-width: 500px; width: 100%; position: relative; z-index: 10; }
-
-.card {
-    background: var(--cream);
-    border: 4px solid var(--dark);
-    box-shadow: 6px 6px 0px rgba(0,0,0,0.2);
-    padding: 20px; margin-bottom: 25px; text-align: center;
-}
-
-.rain {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: url('https://www.transparenttextures.com/patterns/rain.png');
-    opacity: 0.2; z-index: 1; pointer-events: none;
-}
-
-/* Totoro Bounce Animation */
-#totoro-img { 
-    width: 200px; 
-    height: auto; 
-    cursor: pointer; 
-    transition: transform 0.1s cubic-bezier(.47,1.64,.41,.8);
-    image-rendering: pixelated;
-}
-.totoro-container { position: relative; }
-.pixel-bubble {
-    position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
-    background: white; border: 2px solid black; padding: 5px;
-    font-family: 'Press Start 2P'; font-size: 0.5rem; display: none; z-index: 20;
-}
-
-/* FLUFFY SWARM SPRITES */
-.soot {
-    position: fixed; 
-    width: 30px; height: 30px; /* Smaller */
-    z-index: 5; 
-    transition: left 2.5s ease-in-out, top 2.5s ease-in-out; /* Smooth group move */
-    animation: vibrate 0.1s infinite; /* Fluffy shiver */
-}
-
-@keyframes vibrate {
-    0%, 100% { transform: translate(0,0) scale(1); }
-    50% { transform: translate(1px, -1px) scale(1.05); }
-}
-
-.grid-3x4 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
-@media (max-width: 500px) { .grid-3x4 { grid-template-columns: repeat(2, 1fr); } }
-
-.quest-box {
-    aspect-ratio: 1/1; background: var(--forest); border: 3px solid var(--dark);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; background-size: cover; position: relative; color: white;
-}
-.caption { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.7); font-size: 0.6rem; color: white; padding: 2px 0; }
-
-.mood-btns { display: flex; gap: 10px; }
-button { padding: 10px; border: 3px solid var(--dark); font-family: 'Press Start 2P'; font-size: 0.5rem; cursor: pointer; background: white; flex: 1; }
-button:active { background: #ddd; }
-
-#noBtn { position: absolute; left: 60%; transition: 0.1s; }
-#yesBtn { position: absolute; left: 10%; background: #ff7675; color: white; }
-
-.acorn-btn { font-size: 4rem; background: none; border: none; cursor: pointer; }
-.bar { background: #ccc; border: 2px solid var(--dark); height: 12px; margin-top: 5px; }
-.fill { height: 100%; transition: width 0.5s ease; }
-
-/* --- Gimmick Animations --- */
-
-/* The shake effect when clicked */
-@keyframes leafShake {
-    0% { transform: rotate(0deg); }
-    25% { transform: rotate(10deg); }
-    50% { transform: rotate(-10deg); }
-    75% { transform: rotate(10deg); }
-    100% { transform: rotate(0deg); }
-}
-
-.shake-it {
-    animation: leafShake 0.4s ease-in-out;
-}
-
-/* The smooth pop effect when photo reveals */
-@keyframes photoPop {
-    0% { transform: scale(0.5); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
-}
-
-.quest-box.open {
-    animation: photoPop 0.4s cubic-bezier(.47,1.64,.41,.8);
-    border: 3px solid #ff7675; /* Highlight the found memory */
-}
-#game-gate {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background-color: #576F72; /* Darker Forest Night */
-    z-index: 5000; display: flex; justify-content: center; align-items: center;
-    overflow: hidden;
-}
-
-.game-area {
-    position: relative;
-    width: 320px; height: 400px;
-    border: 4px dashed white;
-    margin: 20px auto;
-    background: rgba(0,0,0,0.2);
-    overflow: hidden; /* Ticket stays inside the box */
-}
-
-#target-ticket {
-    position: absolute;
-    font-size: 2.5rem;
-    cursor: pointer;
-    z-index: 5100;
-    transition: all 0.2s ease-out; /* Speed of the jump */
-    user-select: none;
-}
-
-.watching-totoro {
-    position: absolute;
-    bottom: -10px; /* Sits slightly lower for a cleaner look */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 140px; /* Adjusted size for the GIF */
-    opacity: 1; /* GIFs look better at full opacity */
-    z-index: 5050;
-    /* This keeps pixel art looking sharp */
-    image-rendering: pixelated; 
-}
-
-.pixel-bubble-gate {
-    position: absolute; top: 10px; left: 50%;
-    transform: translateX(-50%);
-    background: white; border: 2px solid black;
-    padding: 5px; font-family: 'Press Start 2P';
-    font-size: 0.5rem; width: 80%;
-}
-/* Boss Phase Screen Shake */
-@keyframes screenShake {
-    0% { transform: translate(1px, 1px) rotate(0deg); }
-    10% { transform: translate(-1px, -2px) rotate(-1deg); }
-    20% { transform: translate(-3px, 0px) rotate(1deg); }
-    30% { transform: translate(3px, 2px) rotate(0deg); }
-    40% { transform: translate(1px, -1px) rotate(1deg); }
-    50% { transform: translate(-1px, 2px) rotate(-1deg); }
-    60% { transform: translate(-3px, 1px) rotate(0deg); }
-    70% { transform: translate(3px, 1px) rotate(-1deg); }
-    80% { transform: translate(-1px, -1px) rotate(1deg); }
-    90% { transform: translate(1px, 2px) rotate(0deg); }
-    100% { transform: translate(1px, -2px) rotate(-1deg); }
-}
-
-.boss-shake {
-    animation: screenShake 0.5s infinite;
-}
-#musicToggle {
-    /* Position it in the bottom-right corner */
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 9999;
-
-    /* Make it small */
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    font-size: 1.2rem; /* Size of the speaker icon */
+// Photo Captions
+const txts = [
+    "Day 1 ❤️", "U weird lol", "My Baby", "Hungry??", "My fav",
+    "Level 2 chaos", "Sweet soul", "GANDAAAAAAAAAA", "Totoro-ly love u",
+    "AKIN KA LANG!", "I'll Marry you SOON!", "Monthsary! 🥂"
+];
+// ==========================================
+// PRE-LOADER LOGIC
+// ==========================================
+window.addEventListener('load', () => {
+    const preloader = document.getElementById('preloader');
     
-    /* Make it match your theme */
-    background: var(--cream);
-    border: 3px solid var(--dark);
-    box-shadow: 3px 3px 0px rgba(0,0,0,0.2);
-    
-    /* Center the icon inside */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
+    // We give it 2.5 seconds so they can actually see the cute GIF
+    setTimeout(() => {
+        preloader.classList.add('loader-hidden');
+    }, 2500); 
+});
+
+// ==========================================
+// 2. THE TICKET CHASE GAME (GATEKEEPER)
+// ==========================================
+
+function moveTicket() {
+    if (!gameActive) return;
+
+    // Boundary check: game-area is 320x400
+    // We subtract ticket size (~40px) to keep it inside
+    const maxX = 280;
+    const maxY = 340;
+    const newX = Math.floor(Math.random() * maxX);
+    const newY = Math.floor(Math.random() * maxY);
+
+    target.style.left = newX + "px";
+    target.style.top = newY + "px";
+
+    const taunts = ["Too slow!", "Try harder!", "Missed me!", "Hehe!", "Focus!", "Over here!"];
+    if (Math.random() > 0.7) {
+        gateMsg.innerText = taunts[Math.floor(Math.random() * taunts.length)];
+    }
 }
 
-/* Make it slightly smaller when clicked */
-#musicToggle:active {
-    box-shadow: none;
-    transform: translate(2px, 2px);
-}
-/* Hide the main content initially */
-.game-wrapper {
-    display: none; 
-    max-width: 500px;
-    width: 100%;
-    position: relative;
-    z-index: 10;
+// Start automatic jumping
+movementInterval = setInterval(moveTicket, ticketSpeed);
+
+function catchTicket() {
+    if (!gameActive) return;
+
+    // Start music on first catch
+    if (!musicStarted && bgMusic) {
+        bgMusic.play().catch(e => console.log("Music waiting for interaction"));
+        bgMusic.volume = 0.4;
+        musicStarted = true;
+    }
+
+    stagesCleared++;
+    stageDisplay.innerText = stagesCleared;
+    popSound.currentTime = 0;
+    popSound.play();
+
+    // Make it harder: Increase speed and shrink ticket
+    clearInterval(movementInterval);
+    ticketSpeed -= 120; // Gets faster every hit
+    movementInterval = setInterval(moveTicket, ticketSpeed);
+    target.style.fontSize = (2.5 - (stagesCleared * 0.3)) + "rem";
+
+    // Progress Messages
+    if (stagesCleared === 1) gateMsg.innerText = "Level 1: CRUSH ❤️";
+    if (stagesCleared === 3) gateMsg.innerText = "Level 3: OBSESSED ❤️❤️❤️";
+
+    if (stagesCleared >= 5) {
+        gameActive = false;
+        clearInterval(movementInterval);
+        gateMsg.innerText = "LEVEL 5: FOREVER!! ❤️";
+        target.style.display = "none";
+
+        setTimeout(() => {
+            unlockSite();
+        }, 800);
+    }
 }
 
-/* Pre-loader Container */
-#preloader {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #8cbf88; /* Matches your --grass color */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999; /* Higher than everything else */
-    transition: opacity 0.8s ease, visibility 0.8s;
+function unlockSite() {
+    const gate = document.getElementById('game-gate');
+    gate.style.transform = "translateY(-100%)"; // Slide up effect
+
+    setTimeout(() => {
+        gate.style.display = "none";
+        document.querySelector('.game-wrapper').style.display = "block";
+        confetti({
+            particleCount: 250,
+            spread: 120,
+            origin: { y: 0.6 },
+            colors: ['#ffb3ba', '#baffc9', '#bae1ff', '#ffffba']
+        });
+    }, 1000);
 }
 
-.preloader-content {
-    text-align: center;
+// ==========================================
+// 3. MUSIC & MAIN SITE UI
+// ==========================================
+
+function toggleMusic() {
+    const btn = document.getElementById('musicToggle');
+    if (bgMusic.paused) {
+        bgMusic.play();
+        btn.innerText = "🔊";
+    } else {
+        bgMusic.pause();
+        btn.innerText = "🔈";
+    }
 }
 
-.preloader-gif {
-    width: 120px;
-    height: auto;
+// Totoro Belly Bounce
+function totoroBounce() {
+    bounces++;
+    document.getElementById('bounceCount').innerText = bounces;
+    popSound.play();
+    const img = document.getElementById('totoro-img');
+    const bubble = document.getElementById('roar-bubble');
+    img.style.transform = "scale(1.3, 0.8)";
+    if (bubble) bubble.style.display = "block";
+    setTimeout(() => {
+        img.style.transform = "scale(1, 1)";
+        if (bubble) bubble.style.display = "none";
+    }, 150);
 }
 
-/* Loading Bar Animation */
-.loading-bar-container {
-    width: 200px;
-    height: 8px;
-    background: rgba(0,0,0,0.2);
-    border: 2px solid var(--dark);
-    margin: 15px auto;
-    overflow: hidden;
+// ==========================================
+// 4. SOOT SPRITE SWARM
+// ==========================================
+const swarmContainer = document.getElementById('soot-swarm');
+const sprites = [];
+const spriteCount = 40;
+const fluffySootSVG = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M50,2 L55,20 L65,5 L70,25 L85,10 L80,30 L98,25 L85,45 L100,60 L80,65 L90,85 L70,75 L65,95 L50,80 L35,95 L30,75 L10,85 L20,65 L0,60 L15,45 L2,25 L20,30 L15,10 L30,25 L35,5 L45,20 Z" fill="black" /><circle cx="35" cy="45" r="8" fill="white" /><circle cx="65" cy="45" r="8" fill="white" /><circle cx="35" cy="45" r="3" fill="black" /><circle cx="65" cy="45" r="3" fill="black" /></svg>`;
+
+for (let i = 0; i < spriteCount; i++) {
+    const soot = document.createElement('div');
+    soot.className = 'soot';
+    soot.innerHTML = fluffySootSVG;
+    soot.style.left = Math.random() * 100 + "vw";
+    soot.style.top = Math.random() * 100 + "vh";
+    swarmContainer.appendChild(soot);
+    sprites.push(soot);
 }
 
-.loading-bar-fill {
-    width: 0%;
-    height: 100%;
-    background: white;
-    animation: loadingFill 2s forwards; /* Adjust time as needed */
+setInterval(() => {
+    const targetX = Math.random() * 80; const targetY = Math.random() * 80;
+    sprites.forEach((s, i) => {
+        setTimeout(() => {
+            s.style.left = (targetX + (Math.random() - 0.5) * 20) + "vw";
+            s.style.top = (targetY + (Math.random() - 0.5) * 20) + "vh";
+        }, i * 20);
+    });
+}, 3000);
+
+function scareSprites() {
+    popSound.play();
+    sprites.forEach(s => { s.style.left = Math.random() * 100 + "vw"; s.style.top = Math.random() * 100 + "vh"; });
 }
 
-@keyframes loadingFill {
-    0% { width: 0%; }
-    100% { width: 100%; }
+// ==========================================
+// 5. GAME MECHANICS (HUNGER & ACORNS)
+// ==========================================
+
+setInterval(() => {
+    hunger -= 5;
+    if (hunger < 0) hunger = 0;
+    const bar = document.getElementById('hunger-bar');
+    if (bar) bar.style.width = hunger + "%";
+    if (hunger < 30) {
+        document.getElementById('hunger-warning').style.display = "block";
+        if (bar) bar.style.background = "red";
+    }
+}, 2000);
+
+function feedOnigiri() {
+    hunger = 100;
+    const bar = document.getElementById('hunger-bar');
+    if (bar) { bar.style.width = "100%"; bar.style.background = "#ff7675"; }
+    document.getElementById('hunger-warning').style.display = "none";
+    popSound.play();
+    confetti({ particleCount: 50, spread: 40, colors: ['#ffffff', '#000000'] });
 }
 
-/* NO Button Popup GIF */
-#no-popup {
-    display: none;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6);
-    z-index: 99999;
-    justify-content: center;
-    align-items: center;
+function addAcorn() {
+    acorns++;
+    document.getElementById('acornCount').innerText = acorns;
+    popSound.play();
+    if (acorns >= 50) {
+        const secret = document.getElementById('secretMsg');
+        if (secret) {
+            secret.style.display = 'block';
+            secret.innerText = `give me ${acorns} akiss`;
+        }
+    }
 }
 
-#no-popup img {
-    width: 280px;
-    max-width: 90vw;
-    border: 4px solid var(--dark);
-    box-shadow: 8px 8px 0px rgba(0,0,0,0.4);
-    border-radius: 4px;
+// ==========================================
+// 6. PHOTO GRID (SHAKE & POP)
+// ==========================================
+const grid = document.getElementById('photoGrid');
+if (grid) {
+    for (let i = 1; i <= 12; i++) {
+        const box = document.createElement('div');
+        box.className = 'quest-box';
+        box.innerHTML = '🍃';
+        box.onclick = () => {
+            if (!box.classList.contains('open')) {
+                box.classList.add('shake-it');
+                popSound.play();
+                const rect = box.getBoundingClientRect();
+                confetti({
+                    particleCount: 35, spread: 60,
+                    origin: { x: (rect.left + rect.width / 2) / window.innerWidth, y: (rect.top + rect.height / 2) / window.innerHeight },
+                    colors: ['#ffb3ba', '#baffc9', '#bae1ff', '#ffffba'],
+                    shapes: ['circle'], scalar: 0.8
+                });
+                setTimeout(() => {
+                    box.classList.remove('shake-it'); box.classList.add('open');
+                    box.style.backgroundImage = `url('assets/${i}.jpg')`;
+                    box.innerHTML = `<div class="caption">${txts[i - 1]}</div>`;
+                    totoroBounce();
+                }, 400);
+            }
+        };
+        grid.appendChild(box);
+    }
 }
+
+// ==========================================
+// 7. LOVE TEST
+// ==========================================
+const noBtn = document.getElementById('noBtn');
+if (noBtn) {
+    noBtn.addEventListener('mouseover', function () {
+        this.style.left = Math.random() * 80 + "%";
+        this.style.top = Math.random() * 50 + "px";
+    });
+
+    noBtn.addEventListener('click', function () {
+        // Create popup if it doesn't exist yet
+        let popup = document.getElementById('no-popup');
+        if (!popup) {
+            popup = document.createElement('div');
+            popup.id = 'no-popup';
+            popup.innerHTML = `<img src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHdieDQ4OTJhbTdrZWZmejdpZnc2bm1lajFrczk4azZ2ZDNrd2R3bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/NMjRRZOo9XtZe/giphy.gif" alt="no reaction">`;
+            document.body.appendChild(popup);
+        }
+
+        // Show popup
+        popup.style.display = 'flex';
+
+        // Auto close after 2 seconds
+        clearTimeout(popup._closeTimer);
+        popup._closeTimer = setTimeout(() => {
+            popup.style.display = 'none';
+        }, 2000);
+    });
+}
+
+function celebrate() { confetti({ particleCount: 150, spread: 70 }); alert("I KNEW IT! I LOVE YOU SO MUCH ❤️"); }
+
