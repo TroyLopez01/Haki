@@ -236,7 +236,7 @@ if (grid) {
                 });
                 setTimeout(() => {
                     box.classList.remove('shake-it'); box.classList.add('open');
-                    box.style.backgroundImage = url('assets/${i}.jpg');
+                    box.style.backgroundImage = `url('assets/${i}.jpg')`;
                     box.innerHTML = `<div class="caption">${txts[i - 1]}</div>`;
                     totoroBounce();
                 }, 400);
