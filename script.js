@@ -255,26 +255,6 @@ if (noBtn) {
         this.style.left = Math.random() * 80 + "%";
         this.style.top = Math.random() * 50 + "px";
     });
-
-    noBtn.addEventListener('click', function () {
-        // Create popup if it doesn't exist yet
-        let popup = document.getElementById('no-popup');
-        if (!popup) {
-            popup = document.createElement('div');
-            popup.id = 'no-popup';
-            popup.innerHTML = `<img src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHdieDQ4OTJhbTdrZWZmejdpZnc2bm1lajFrczk4azZ2ZDNrd2R3bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/NMjRRZOo9XtZe/giphy.gif" alt="no reaction">`;
-            document.body.appendChild(popup);
-        }
-
-        // Show popup
-        popup.style.display = 'flex';
-
-        // Auto close after 2 seconds
-        clearTimeout(popup._closeTimer);
-        popup._closeTimer = setTimeout(() => {
-            popup.style.display = 'none';
-        }, 2000);
-    });
 }
 
 function celebrate() { confetti({ particleCount: 150, spread: 70 }); alert("I KNEW IT! I LOVE YOU SO MUCH ❤️"); }
